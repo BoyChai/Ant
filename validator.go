@@ -1,7 +1,6 @@
 package Ant
 
 import (
-	"errors"
 	"fmt"
 	"reflect"
 )
@@ -10,7 +9,7 @@ type Validator struct {
 }
 
 // Struct 结构体检查
-func (v *Validator) Struct(s interface{}) error {
+func (v *Validator) Struct(s interface{}) []string {
 	var err []string
 	tag := reflect.TypeOf(s)
 	value := reflect.ValueOf(s)
@@ -33,5 +32,5 @@ func (v *Validator) Struct(s interface{}) error {
 			}
 		}
 	}
-	return errors.New(fmt.Sprintln(err))
+	return err
 }
