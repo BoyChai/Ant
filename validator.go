@@ -38,7 +38,7 @@ func (v *Validator) Struct(s interface{}, filePath ...string) Error {
 		}
 
 		// 切片类型处理
-		if fieldType == reflect.Slice {
+		if fieldType == reflect.Slice || fieldType == reflect.Array {
 			sliceValue := value.FieldByName(fieldName)
 			// 遍历结构体切片
 			for j := 0; j < sliceValue.Len(); j++ {
