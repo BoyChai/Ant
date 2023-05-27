@@ -1,6 +1,7 @@
 package Ant
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -16,10 +17,6 @@ type Error struct {
 type errorData struct {
 	Value string
 }
-
-var a int
-
-var b int
 
 // Struct 结构体检查
 func (v *Validator) Struct(s interface{}, filePath ...string) Error {
@@ -42,13 +39,9 @@ func (v *Validator) Struct(s interface{}, filePath ...string) Error {
 
 		// 切片类型处理
 		if fieldType == reflect.Slice {
-			a++
-			fmt.Println("Test:", a)
 			sliceValue := value.FieldByName(fieldName)
 			// 遍历结构体切片
 			for j := 0; j < sliceValue.Len(); j++ {
-				b++
-				fmt.Println(b)
 				sliceFieldName := fieldName + "[" + fmt.Sprint(j) + "]"
 				// Test[0]
 				elemValue := sliceValue.Index(j)
@@ -59,13 +52,21 @@ func (v *Validator) Struct(s interface{}, filePath ...string) Error {
 					}
 				}
 				// 检查是否需要数据检查
-				err = append(err, checkValue(ruleName, elemValue, filePath, fieldName, true, sliceFieldName)...)
+				e := checkValue(ruleName, fmt.Sprint(elemValue.Interface()))
+				if e != nil {
+					err = append(err, fmt.Sprintf(formatFieldName(filePath, sliceFieldName)+e.Error()))
+				}
+				//err = append(err, checkValue(ruleName, elemValue, filePath, fieldName, true, sliceFieldName)...)
 			}
 			continue
 		}
+		//// 检查是否需要数据检查
+		e := checkValue(ruleName, fmt.Sprint(value.FieldByName(fieldName).Interface()))
+		if e != nil {
+			err = append(err, fmt.Sprintf(formatFieldName(filePath, fieldName)+e.Error()))
+		}
+		//err = append(err, checkValue(ruleName, value, filePath, fieldName, false)...)
 
-		// 检查是否需要数据检查
-		err = append(err, checkValue(ruleName, value, filePath, fieldName, false)...)
 	}
 	return formatError(err)
 }
@@ -89,34 +90,51 @@ func formatError(data []string) Error {
 	return e
 }
 
-func checkValue(ruleName string, value reflect.Value, filePath []string, fieldName string, slice bool, sliceFieldName ...string) []string {
-	var err []string
+// 数据检查
+func checkValue(ruleName string, value string) error {
 	if ruleName != "" {
-		// 拿到正则检查对象
-		rule, e := rules.getRule(ruleName)
-		if e != nil {
-			if len(sliceFieldName) == 0 {
-				err = append(err, fmt.Sprintf(formatFieldName(filePath, fieldName)+": "+ruleName+" "+e.Error()))
-			} else {
-				err = append(err, fmt.Sprintf(formatFieldName(filePath, sliceFieldName[0])+": "+ruleName+" "+e.Error()))
-			}
-			return err
+		rule, err := rules.getRule(ruleName)
+		if err != nil {
+			return errors.New(" " + ruleName + " " + err.Error())
 		}
-		// 使用正则对象进行检查
-		var isMatch bool
-		if !slice {
-			isMatch = rule.MatchString(fmt.Sprint(value.FieldByName(fieldName).Interface()))
-		} else {
-			isMatch = rule.MatchString(fmt.Sprint(value.Interface()))
-		}
+		isMatch := rule.MatchString(value)
 		if !isMatch {
-			if len(sliceFieldName) == 0 {
-				err = append(err, fmt.Sprintf(formatFieldName(filePath, fieldName)+": Check failed"))
-			} else {
-				err = append(err, fmt.Sprintf(formatFieldName(filePath, sliceFieldName[0])+": Check failed"))
-			}
-			return err
+			return errors.New("check failed")
 		}
+		return nil
 	}
-	return err
+	return nil
 }
+
+// 数据检查
+//func checkValue(ruleName string, value reflect.Value, filePath []string, fieldName string, slice bool, sliceFieldName ...string) []string {
+//	var err []string
+//	if ruleName != "" {
+//		// 拿到正则检查对象
+//		rule, e := rules.getRule(ruleName)
+//		if e != nil {
+//			if len(sliceFieldName) == 0 {
+//				err = append(err, fmt.Sprintf(formatFieldName(filePath, fieldName)+": "+ruleName+" "+e.Error()))
+//			} else {
+//				err = append(err, fmt.Sprintf(formatFieldName(filePath, sliceFieldName[0])+": "+ruleName+" "+e.Error()))
+//			}
+//			return err
+//		}
+//		// 使用正则对象进行检查
+//		var isMatch bool
+//		if !slice {
+//			isMatch = rule.MatchString(fmt.Sprint(value.FieldByName(fieldName).Interface()))
+//		} else {
+//			isMatch = rule.MatchString(fmt.Sprint(value.Interface()))
+//		}
+//		if !isMatch {
+//			if len(sliceFieldName) == 0 {
+//				err = append(err, fmt.Sprintf(formatFieldName(filePath, fieldName)+": Check failed"))
+//			} else {
+//				err = append(err, fmt.Sprintf(formatFieldName(filePath, sliceFieldName[0])+": Check failed"))
+//			}
+//			return err
+//		}
+//	}
+//	return err
+//}
