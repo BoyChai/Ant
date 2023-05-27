@@ -17,6 +17,10 @@ type errorData struct {
 	Value string
 }
 
+var a int
+
+var b int
+
 // Struct 结构体检查
 func (v *Validator) Struct(s interface{}, filePath ...string) Error {
 	var err []string
@@ -38,14 +42,16 @@ func (v *Validator) Struct(s interface{}, filePath ...string) Error {
 
 		// 切片类型处理
 		if fieldType == reflect.Slice {
-			fmt.Println(fieldType)
-			fmt.Println(fieldName)
+			a++
+			fmt.Println("Test:", a)
 			sliceValue := value.FieldByName(fieldName)
-			fmt.Println(sliceValue)
+			// 遍历结构体切片
 			for j := 0; j < sliceValue.Len(); j++ {
+				b++
+				fmt.Println(b)
 				sliceFieldName := fieldName + "[" + fmt.Sprint(j) + "]"
+				// Test[0]
 				elemValue := sliceValue.Index(j)
-				fmt.Println(elemValue)
 				if elemValue.Kind() == reflect.Struct {
 					e := v.Struct(elemValue.Interface(), formatFieldName(filePath, sliceFieldName))
 					for i := 0; i < len(e.Data); i++ {
@@ -53,13 +59,13 @@ func (v *Validator) Struct(s interface{}, filePath ...string) Error {
 					}
 				}
 				// 检查是否需要数据检查
-				err = append(err, checkValue(ruleName, value, filePath, fieldName, sliceFieldName)...)
+				err = append(err, checkValue(ruleName, elemValue, filePath, fieldName, true, sliceFieldName)...)
 			}
 			continue
 		}
 
 		// 检查是否需要数据检查
-		err = append(err, checkValue(ruleName, value, filePath, fieldName)...)
+		err = append(err, checkValue(ruleName, value, filePath, fieldName, false)...)
 	}
 	return formatError(err)
 }
@@ -83,7 +89,7 @@ func formatError(data []string) Error {
 	return e
 }
 
-func checkValue(ruleName string, value reflect.Value, filePath []string, fieldName string, sliceFieldName ...string) []string {
+func checkValue(ruleName string, value reflect.Value, filePath []string, fieldName string, slice bool, sliceFieldName ...string) []string {
 	var err []string
 	if ruleName != "" {
 		// 拿到正则检查对象
@@ -97,7 +103,12 @@ func checkValue(ruleName string, value reflect.Value, filePath []string, fieldNa
 			return err
 		}
 		// 使用正则对象进行检查
-		isMatch := rule.MatchString(fmt.Sprint(value.FieldByName(fieldName).Interface()))
+		var isMatch bool
+		if !slice {
+			isMatch = rule.MatchString(fmt.Sprint(value.FieldByName(fieldName).Interface()))
+		} else {
+			isMatch = rule.MatchString(fmt.Sprint(value.Interface()))
+		}
 		if !isMatch {
 			if len(sliceFieldName) == 0 {
 				err = append(err, fmt.Sprintf(formatFieldName(filePath, fieldName)+": Check failed"))
