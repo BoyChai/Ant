@@ -8,7 +8,13 @@ import (
 )
 
 type Validator struct {
+	Parity validatorParity
 }
+
+type validatorParity string
+
+const Ant validatorParity = "ant"
+const Custom validatorParity = "custom"
 
 type Error struct {
 	Is   bool
@@ -21,12 +27,16 @@ type errorData struct {
 // String 字符串检查
 func (v *Validator) String(value string, rule string) Error {
 	var err []string
-	e := checkValue(rule, value)
+	e := v.checkValue(rule, value)
 	if e != nil {
 		err = append(err, "String: "+e.Error())
 		return formatError(err)
 	}
 	return formatError(err)
+}
+
+func (v *Validator) Type(t interface{}, value interface{}, rule string) {
+
 }
 
 // Struct 结构体检查
@@ -63,7 +73,7 @@ func (v *Validator) Struct(s interface{}, filePath ...string) Error {
 					}
 				}
 				// 检查是否需要数据检查
-				e := checkValue(ruleName, fmt.Sprint(elemValue.Interface()))
+				e := v.checkValue(ruleName, fmt.Sprint(elemValue.Interface()))
 				if e != nil {
 					err = append(err, fmt.Sprintf(formatFieldName(filePath, sliceFieldName)+e.Error()))
 				}
@@ -72,7 +82,7 @@ func (v *Validator) Struct(s interface{}, filePath ...string) Error {
 			continue
 		}
 		//// 检查是否需要数据检查
-		e := checkValue(ruleName, fmt.Sprint(value.FieldByName(fieldName).Interface()))
+		e := v.checkValue(ruleName, fmt.Sprint(value.FieldByName(fieldName).Interface()))
 		if e != nil {
 			err = append(err, fmt.Sprintf(formatFieldName(filePath, fieldName)+e.Error()))
 		}
@@ -102,17 +112,31 @@ func formatError(data []string) Error {
 }
 
 // 数据检查
-func checkValue(ruleName string, value string) error {
+func (v Validator) checkValue(ruleName, value string) error {
 	if ruleName != "" {
-		rule, err := rules.getRule(ruleName)
-		if err != nil {
-			return errors.New(" " + ruleName + " " + err.Error())
+		switch v.Parity {
+		case Custom:
+			rule := custom.getRule(ruleName)
+			if rule == nil {
+				return errors.New(": " + ruleName + " unknown rule")
+			}
+			err := rule(value)
+			if err != nil {
+				return errors.New(": " + err.Error())
+			}
+
+			return nil
+		default:
+			rule, err := rules.getRule(ruleName)
+			if err != nil {
+				return errors.New(": " + ruleName + " " + err.Error())
+			}
+			isMatch := rule.MatchString(value)
+			if !isMatch {
+				return errors.New(": check failed")
+			}
+			return nil
 		}
-		isMatch := rule.MatchString(value)
-		if !isMatch {
-			return errors.New("check failed")
-		}
-		return nil
 	}
 	return nil
 }

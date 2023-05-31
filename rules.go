@@ -19,6 +19,14 @@ var rules = rulesMap{
 
 type rulesMap map[string]string
 
+var custom customRule
+
+type customRule map[string]func(value string) error
+
+func init() {
+	custom = make(map[string]func(value string) error)
+}
+
 // 获取规则对象
 func (r *rulesMap) getRule(name string) (*regexp.Regexp, error) {
 	if rules[name] != "" {
@@ -29,4 +37,12 @@ func (r *rulesMap) getRule(name string) (*regexp.Regexp, error) {
 		return regexpObj, nil
 	}
 	return nil, errors.New("unknown rule")
+}
+
+func NewCustomRule(ruleName string, fun func(value string) error) {
+	custom[ruleName] = fun
+}
+
+func (c *customRule) getRule(name string) func(value string) error {
+	return custom[name]
 }
