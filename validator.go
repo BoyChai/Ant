@@ -18,6 +18,17 @@ type errorData struct {
 	Value string
 }
 
+// String 字符串检查
+func (v *Validator) String(value string, rule string) Error {
+	var err []string
+	e := checkValue(rule, value)
+	if e != nil {
+		err = append(err, "String: "+e.Error())
+		return formatError(err)
+	}
+	return formatError(err)
+}
+
 // Struct 结构体检查
 func (v *Validator) Struct(s interface{}, filePath ...string) Error {
 	var err []string
